@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using NGA.ChangesManagement;
 using SharpDX;
 using SharpDX.Direct2D1;
 
@@ -241,13 +242,23 @@ public class Wire : Drawable
         }
     }
 
-
-    public override void OnMouseEnter(MouseEventArgs e, Collider collider)
+    public override void Attach()
     {
+        if (isAttached) return;
+        Program.canvas.Drawbles.Add(this);
+        Physics.colliders.Add(this.collider);
+        if (start != null && start.Drawable != null) ((NodeRing)start.Drawable).Connections.Add(this);
+        if (end != null && end.Drawable != null) ((NodeRing)end.Drawable).Connections.Add(this);
+        isAttached = true;
     }
-
-    public override void OnMouseExit(MouseEventArgs e, Collider collider)
+    public override void Detach()
     {
+        if (!isAttached) return;
+        Program.canvas.Drawbles.Remove(this);
+        Physics.colliders.Remove(this.collider);
+        if (start != null && start.Drawable != null) ((NodeRing)start.Drawable).Connections.Remove(this);
+        if (end != null && end.Drawable != null) ((NodeRing)end.Drawable).Connections.Remove(this);
+        isAttached = false;
     }
     public override void Destroy()
     {
@@ -264,8 +275,16 @@ public class Wire : Drawable
     {
         if (e.Button == MouseButtons.Right)
         {
-            Destroy();
+            Change change = new WireDisconnected(this);
+            change.Apply();
+            Program.canvas.ChangesManager.Push(change);
+            Program.MarkCanvasDirty();
         }
+    }
+    ~Wire()
+    {
+        if(brush!=null)brush.Dispose();
+        Console.WriteLine("Wire object finallized");
     }
 }
 

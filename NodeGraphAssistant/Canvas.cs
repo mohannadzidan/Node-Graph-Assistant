@@ -13,6 +13,7 @@ using AlphaMode = SharpDX.Direct2D1.AlphaMode;
 using Device = SharpDX.Direct3D11.Device;
 using Factory = SharpDX.DXGI.Factory;
 using NGA.Holders;
+using NGA.ChangesManagement;
 
 public partial class Canvas : RenderForm
 {
@@ -25,22 +26,12 @@ public partial class Canvas : RenderForm
     Surface surface;
     Factory factory;
     RenderTarget renderTarget;
-    Vector2 translation;
-    Vector2 draggingAnchor;
-    Vector2 nodeDraggingAnchor;
-    Vector2 draggingAmount;
-    RectangleF selectionRectangle;
     ContextMenu defaultContextMenu;
     List<Drawable> drawables = new List<Drawable>();
-    List<Collider> selectionBucket = new List<Collider>();
-    Collider mouseEventCollider;
-    bool isDraggingNodes;
-    bool isSelecting = false;
-    public bool holdRender;
     Thread controlThread;
+    private StatusStrip statusStrip;
+
     public List<Drawable> Drawbles { get => drawables; set => drawables = value; }
-    public Vector2 Translation { get => translation + draggingAmount; set => translation = value; }
-    public List<Collider> SelectionBucket { get => selectionBucket; }
 
     public void UpdateView()
     {
@@ -133,15 +124,15 @@ public partial class Canvas : RenderForm
     public Canvas(System.Drawing.Size resolution) : base()
     {
 
-        InitDX(resolution);
+        Init(resolution);
 
     }
     public Canvas(string name, System.Drawing.Size resolution, Thread controlThread) : base(name)
     {
         this.controlThread = controlThread;
-        InitDX(resolution);
+        Init(resolution);
     }
-    private void InitDX(System.Drawing.Size resolution)
+    private void Init(System.Drawing.Size resolution)
     {
         WindowState = FormWindowState.Maximized;
         SetDesktopBounds(0, 0, resolution.Width, resolution.Height);
@@ -176,7 +167,9 @@ public partial class Canvas : RenderForm
         // initialize menus
         defaultContextMenu = new ContextMenu();
         defaultContextMenu.MenuItems.Add("Add node", (object o, EventArgs e) => {
-            drawables.Add(new Node(Input.mousePosition.X, Input.mousePosition.Y));
+            NodeAdd change = new NodeAdd(Input.mousePosition.X, Input.mousePosition.Y);
+            changesManager.Push(change);
+            change.Apply();
             Program.MarkCanvasDirty();
         });
         MainMenuStrip = new MenuStrip();
@@ -186,7 +179,11 @@ public partial class Canvas : RenderForm
         fileTap.DropDownItems.Add(new ToolStripMenuItem("Load", null, LoadCanvas, Keys.O|Keys.Control));
         MainMenuStrip.Items.Add(fileTap);
         MainMenuStrip.Renderer = new NGAProfessionalRenderer();
+        statusStrip = new StatusStrip();
+        statusStrip.Renderer = new NGAProfessionalRenderer();
+        statusStrip.Items.Add("fdfads");
         this.Controls.Add(MainMenuStrip);
+        this.Controls.Add(statusStrip);
     }
     public void Start()
     {
@@ -199,192 +196,9 @@ public partial class Canvas : RenderForm
         swapChain.Dispose();
         factory.Dispose();
     }
-    protected override void OnMouseDoubleClick(MouseEventArgs e)
-    {
-
-        base.OnMouseDoubleClick(e);
-        Collider collider;
-        if ((collider = Physics.Pointcast(new Vector2(e.Location.X, e.Location.Y) - Translation)) != null)
-        {
-            mouseEventCollider = collider;
-            mouseEventCollider.Drawable.OnMouseDoubleClick(e, collider);
-        }
-    }
-    protected override void OnMouseDown(MouseEventArgs e)
-    {
-
-        base.OnMouseDown(e);
-        Collider c;
-        if ((c = Physics.Pointcast(new Vector2(e.Location.X, e.Location.Y) - Translation)) != null)
-        {
-            mouseEventCollider = c;
-            mouseEventCollider.Drawable.OnMouseDown(e, c);
-        }
-
-        if (e.Button == MouseButtons.Middle)
-        { // start canvas translation event
-            draggingAnchor = Input.mousePosition;
-        }
-        else if (e.Button == MouseButtons.Left)
-        {
-            if (c == null)
-            {
-                selectionRectangle.Location = Input.mousePosition;
-                selectionRectangle.Width = 0;
-                selectionRectangle.Height = 0;
-                isSelecting = true;
-            }
-            else if (c.Drawable.GetType() == typeof(Node) && !selectionBucket.Contains(c))
-            {
-                selectionBucket.Clear();
-                selectionBucket.Add(c);
-            }
-        }
-
-    }
-    protected override void OnMouseClick(MouseEventArgs e)
-    {
-        base.OnMouseClick(e);
-
-        if (e.Button == MouseButtons.Right)
-        {
-            Collider collider;
-            if (Physics.Pointcast(new Vector2(e.Location.X, e.Location.Y) - Translation, out collider))
-            {
-                if (collider.Drawable.ContextMenu != null)
-                {
-                    collider.Drawable.ContextMenu.Show(this, e.Location);
-                }
-            }
-            else {
-                defaultContextMenu.Show(this, e.Location);
-            }
-        }
-        Collider c;
-        if (e.Button == MouseButtons.Left && !isDraggingNodes)
-        {
-            if ((c = Physics.Pointcast<Node>(Input.mousePosition - Translation)) != null)
-            {
-                if (ModifierKeys == Keys.Control)
-                {
-                    if (selectionBucket.Contains(c))
-                    {
-                        selectionBucket.Remove(c);
-                    }
-                    else selectionBucket.Add(c);
-                }
-                else
-                {
-                    selectionBucket.Clear();
-                    selectionBucket.Add(c);
-
-                }
-                Program.MarkCanvasDirty();
-            }
-
-        }
-
-    }
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        base.OnMouseMove(e);
-
-        if (e.Button == MouseButtons.Middle) // perform canvas translation
-        {
-            draggingAmount = Input.mousePosition - draggingAnchor;
-            Program.MarkCanvasDirty();
-        }
-        else if (e.Button == MouseButtons.Left &&
-            (mouseEventCollider == null || (mouseEventCollider != null && mouseEventCollider.Drawable.GetType() == typeof(Node))))
-        {
-            if (!isDraggingNodes && (Physics.Pointcast<Node>(Input.mousePosition - Translation)) != null)
-            {
-                nodeDraggingAnchor = Input.mousePosition;
-                isDraggingNodes = true;
-            }
-            if (isSelecting)
-            {
-                Vector2 location = new Vector2(e.X, e.Y);
-                selectionRectangle.Width = location.X - selectionRectangle.X;
-                selectionRectangle.Height = location.Y - selectionRectangle.Y;
-                Program.MarkCanvasDirty();
-            }
-            else if (isDraggingNodes)
-            {
-                foreach (Collider s in selectionBucket)
-                {
-                    s.Drawable.Translate(Input.mousePosition - nodeDraggingAnchor);
-                }
-                nodeDraggingAnchor = Input.mousePosition;
-                Program.MarkCanvasDirty();
-
-            }
-        }
-
-    }
-    protected override void OnMouseUp(MouseEventArgs e)
-    {
-        base.OnMouseUp(e);
-        if (mouseEventCollider != null)
-        {
-            mouseEventCollider.Drawable.OnMouseUp(e, Physics.Pointcast(Input.mousePosition - Translation));
-        }
-        if (e.Button == MouseButtons.Left)
-        {
-            if (isSelecting)
-            {
-                if (selectionRectangle.Width < 0)
-                {
-                    selectionRectangle.Width = Math.Abs(selectionRectangle.Width);
-                    selectionRectangle.X -= selectionRectangle.Width;
-                }
-                if (selectionRectangle.Height < 0)
-                {
-                    selectionRectangle.Height = Math.Abs(selectionRectangle.Height);
-                    selectionRectangle.Y -= selectionRectangle.Height;
-                }
-                Collider[] newSelecitons = Physics.RectcastAll<Node>(selectionRectangle);
-                if (ModifierKeys != Keys.Control)
-                {
-                    selectionBucket.Clear();
-                }
-                foreach (Collider newSelection in newSelecitons)
-                {
-                    if (selectionBucket.Contains(newSelection))
-                        selectionBucket.Remove(newSelection);
-                    else
-                        selectionBucket.Add(newSelection);
-                }
-                Program.MarkCanvasDirty();
-            }
-            isSelecting = false;
-            isDraggingNodes = false;
-        }
-
-        if (e.Button == MouseButtons.Middle)
-        { // end canvas translatting
-            translation += draggingAmount;
-            draggingAmount = Vector2.Zero;
-        }
-    }
-
     protected override void OnResizeBegin(EventArgs e)
     {
         base.OnResizeBegin(e);
-        holdRender = true;
-    }
-
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        if (e.KeyCode == Keys.S && ModifierKeys == Keys.Control)
-        {
-            SaveCanvas(null, null);
-        }
-        else if (e.KeyCode == Keys.S && ModifierKeys == (Keys.Control|Keys.Shift)) {
-            SaveCanvasAs(null, null);
-        }
-
     }
     protected override void OnClientSizeChanged(EventArgs e)
     {
@@ -401,92 +215,6 @@ public partial class Canvas : RenderForm
         renderView = new RenderTargetView(d3dDevice, backBuffer);
         surface = backBuffer.QueryInterface<Surface>();
         renderTarget = new RenderTarget(f, surface, new RenderTargetProperties(new PixelFormat(Format.Unknown, AlphaMode.Premultiplied)));
-        holdRender = false;
         Render();
-    }
-
-    public void SaveCanvas(object sender, EventArgs args)
-    {
-        if (string.IsNullOrEmpty(Program.activeFilePath))
-        {
-            SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "NCH files(*.nch) | *.nch";
-            if (saveFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                Program.activeFilePath = saveFileDialog.FileName;
-                Console.WriteLine(Program.activeFilePath);
-                CanvasHolder ch = new CanvasHolder(this);
-                string data = ch.ToJson();
-                System.IO.Stream stream = saveFileDialog.OpenFile();
-                System.IO.StreamWriter streamWriter = new System.IO.StreamWriter(stream);
-                streamWriter.Write(data);
-                streamWriter.Close();
-                stream.Close();
-            }
-        }
-        else {
-            System.IO.StreamWriter streamWriter = new System.IO.StreamWriter(Program.activeFilePath);
-            streamWriter.Write(new CanvasHolder(this).ToJson());
-            streamWriter.Close();
-        }
-
-    }
-    public void SaveCanvasAs(object sender, EventArgs args)
-    {
-        SaveFileDialog saveFileDialog = new SaveFileDialog();
-        saveFileDialog.Filter = "NCH files(*.nch) | *.nch";
-        if (saveFileDialog.ShowDialog() == DialogResult.OK)
-        {
-            Program.activeFilePath = saveFileDialog.FileName;
-            Console.WriteLine(Program.activeFilePath);
-            CanvasHolder ch = new CanvasHolder(this);
-            string data = ch.ToJson();
-            System.IO.Stream stream = saveFileDialog.OpenFile();
-            System.IO.StreamWriter streamWriter = new System.IO.StreamWriter(stream);
-            streamWriter.Write(data);
-            streamWriter.Close();
-            stream.Close();
-        }
-    }
-    public void LoadCanvas(object sender, EventArgs args)
-    {
-        OpenFileDialog openFileDialog = new OpenFileDialog();
-        openFileDialog.Filter = "NCH files(*.nch) | *.nch";
-        if (openFileDialog.ShowDialog() == DialogResult.OK)
-        {
-            Program.activeFilePath = openFileDialog.FileName;
-            System.IO.Stream stream = openFileDialog.OpenFile();
-            System.IO.StreamReader streamReader = new System.IO.StreamReader(stream);
-            string data = streamReader.ReadToEnd();
-            streamReader.Close();
-            stream.Close();
-            CanvasHolder ch = CanvasHolder.FromJson(data);
-            drawables.Clear();
-            selectionBucket.Clear();
-            Physics.colliders.Clear();
-            ch.Release(this);
-        }
-    }
-
-
-    private void InitializeComponent()
-    {
-        this.SuspendLayout();
-        // 
-        // GraphicsWindow
-        // 
-        this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
-        this.ClientSize = new System.Drawing.Size(784, 561);
-        this.ControlBox = false;
-        this.DoubleBuffered = true;
-        this.ForeColor = System.Drawing.SystemColors.ControlText;
-        this.MaximizeBox = false;
-        this.MinimizeBox = false;
-        this.Name = "GraphicsWindow";
-        this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-        this.Text = "Node Graph Assistant";
-        this.TransparencyKey = System.Drawing.Color.Transparent;
-        this.ResumeLayout(false);
-
     }
 }

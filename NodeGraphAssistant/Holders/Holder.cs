@@ -17,7 +17,7 @@ namespace NGA.Holders
             this.id = id;
         }
 
-        public abstract T Release(CanvasHolder holder, CanvasHolder.IDGenerator generator);
+        public abstract T Release(CanvasHolder holder, Generators.IDGenerator generator);
 
     }
 

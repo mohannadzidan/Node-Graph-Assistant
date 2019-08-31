@@ -17,7 +17,7 @@ namespace NGA.Holders
             this.secondRingId = secondRingId;
         }
       
-        public override Wire Release(CanvasHolder holder, CanvasHolder.IDGenerator generator)
+        public override Wire Release(CanvasHolder holder, Generators.IDGenerator generator)
         {
             try
             {

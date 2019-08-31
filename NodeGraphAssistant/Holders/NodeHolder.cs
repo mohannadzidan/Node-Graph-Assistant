@@ -22,7 +22,7 @@ namespace NGA.Holders
             this.elements = elements;
         }
 
-        public override Node Release(CanvasHolder canvasHolder, CanvasHolder.IDGenerator generator)
+        public override Node Release(CanvasHolder canvasHolder, Generators.IDGenerator generator)
         {
             Node generatedNode = new Node(x, y, width);
             generatedNode.Title = title;

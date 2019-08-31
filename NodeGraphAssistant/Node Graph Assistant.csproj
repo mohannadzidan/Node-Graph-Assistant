@@ -35,6 +35,22 @@
     <Compile Include="Basic\Brushes.cs" />
     <Compile Include="Basic\Colors.cs" />
     <Compile Include="Basic\IDestroy.cs" />
+    <Compile Include="CanvasInputEvents.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CanvasSaveLoad.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ChangesManagement\Change.cs" />
+    <Compile Include="ChangesManagement\ChangesManager.cs" />
+    <Compile Include="ChangesManagement\NodeAdd.cs" />
+    <Compile Include="ChangesManagement\NodeMovement.cs" />
+    <Compile Include="ChangesManagement\NodeRemove.cs" />
+    <Compile Include="ChangesManagement\NodeRingIndex.cs" />
+    <Compile Include="ChangesManagement\WireDisconnected.cs" />
+    <Compile Include="ChangesManagement\WireConnected.cs" />
+    <Compile Include="Generators\ID.cs" />
+    <Compile Include="Generators\IDGenerator.cs" />
     <Compile Include="Holders\CanvasHolder.cs" />
     <Compile Include="Holders\Holder.cs" />
     <Compile Include="Holders\NodeHolder.cs" />

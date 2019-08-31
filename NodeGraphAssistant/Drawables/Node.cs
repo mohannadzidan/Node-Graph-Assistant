@@ -11,26 +11,30 @@ public class Node : Drawable
     private List<Drawable> elements = new List<Drawable>();
     string title = "Untitled";
     public string Title { get => title; set => title = value; }
-    public Drawable[] Elements { get => elements.ToArray(); }
+    public List<Drawable> Elements { get => elements; }
 
     public Node(float x, float y, float width = 120f) : base(null)
     {
         boundingBox.X = x;
         boundingBox.Y = y;
         boundingBox.Width = width;
-        boundingBox.Height = HeaderHeight+5;
+        boundingBox.Height = HeaderHeight + 5;
         collider = new RectangleCollider(this, new RectangleF(0, 0, width, 30));
         InitializeContextMenu();
+        isAttached = true;
+
     }
-    public Node(float x, float y, Node copy) : base(null){
+    public Node(float x, float y, Node copy) : base(null)
+    {
         boundingBox = new RectangleF(x, y, copy.BoundingBox.Width, copy.BoundingBox.Height);
-        RectangleCollider copyCollider = (RectangleCollider) copy.Collider;
+        RectangleCollider copyCollider = (RectangleCollider)copy.Collider;
         collider = new RectangleCollider(this, new RectangleF(copyCollider.rect.X, copyCollider.rect.Y, copyCollider.rect.Width, copyCollider.rect.Height));
         title = copy.title;
         Random r = new Random();
-        foreach (Drawable  d in copy.elements)
+        foreach (Drawable d in copy.elements)
         {
-            if (d.GetType() == typeof(NodeRing)) {
+            if (d.GetType() == typeof(NodeRing))
+            {
                 NodeRing copyNodeRing = (NodeRing)d;
                 Color4 newColor = new Color4(r.NextFloat(0f, 1f), r.NextFloat(0f, 1f), r.NextFloat(0f, 1f), 1f);
                 NodeRing nodeRing = new NodeRing(this, copyNodeRing.Title, newColor, copyNodeRing.Direction);
@@ -40,8 +44,10 @@ public class Node : Drawable
         CalculateElementsPositions();
         InitializeContextMenu();
         Program.MarkCanvasDirty();
+        isAttached = true;
     }
-    void InitializeContextMenu() {
+    void InitializeContextMenu()
+    {
         contextMenu = new ContextMenuStrip();
         contextMenu.Renderer = new NGAProfessionalRenderer();
         contextMenu.BackColor = System.Drawing.Color.FromArgb(255, 64, 64, 64);
@@ -61,11 +67,13 @@ public class Node : Drawable
 
         contextMenu.Items.Add(generic);
         contextMenu.Items.Add("-");
-        contextMenu.Items.Add("Rename", null, (object o, EventArgs e) => {
+        contextMenu.Items.Add("Rename", null, (object o, EventArgs e) =>
+        {
             TextEditForm form = new TextEditForm(title, (string res) => { title = res; Program.MarkCanvasDirty(); });
             form.Show();
         });
-        contextMenu.Items.Add("Dublicate", null, (object o, EventArgs e) => {
+        contextMenu.Items.Add("Dublicate", null, (object o, EventArgs e) =>
+        {
             Vector2 newPos = boundingBox.Location;
             newPos.Y += boundingBox.Height + 10;
             Program.canvas.Drawbles.Add(new Node(newPos.X, newPos.Y, this));
@@ -96,7 +104,7 @@ public class Node : Drawable
     }
     private void CalculateElementsPositions()
     {
-        float displacment = HeaderHeight+5; // for header
+        float displacment = HeaderHeight + 5; // for header
         for (int i = 0; i < elements.Count; i++)
         {
             elements[i].SetLocation(new Vector2(0, displacment));
@@ -112,7 +120,7 @@ public class Node : Drawable
         RectangleF translatedRect = new RectangleF(translation.X + boundingBox.X, translation.Y + boundingBox.Y, boundingBox.Width, boundingBox.Height);
         renderTarget.FillRoundedRectangle(new RoundedRectangle() { RadiusX = 10, RadiusY = 10, Rect = translatedRect }, Brushes.NodeBackground); ;
         renderTarget.FillRectangle(new RectangleF(translatedRect.X, translatedRect.Y, translatedRect.Width, HeaderHeight), Brushes.DarkGrey);
-        float titleY = translatedRect.Y + HeaderHeight/2 - Utils.MeasureStringHeight(title, Utils.elementTextFormatDefault)/2;
+        float titleY = translatedRect.Y + HeaderHeight / 2 - Utils.MeasureStringHeight(title, Utils.elementTextFormatDefault) / 2;
         RectangleF titleRect = new RectangleF(translatedRect.X + 10, titleY, translatedRect.Width - 10, HeaderHeight);
         renderTarget.DrawText(title, Utils.elementTextFormatDefault, titleRect, Brushes.White);
         for (int i = 0; i < elements.Count; i++)
@@ -156,46 +164,20 @@ public class Node : Drawable
             }
         }
     }
-    public void MoveElementDown(Drawable e)
+    public void SetElementIndex(Drawable e, int newIndex)
     {
-        int index = elements.IndexOf(e);
-        if (index != -1 && elements.Count > 1 && index < elements.Count - 1)
+        if (newIndex < 0 || newIndex >= elements.Count) return;
+        int oldIndex = elements.IndexOf(e);
+        if (newIndex > oldIndex)
         {
-            Drawable temp = elements[index + 1];
-            elements[index + 1] = e;
-            elements[index] = temp;
+            elements.Insert(newIndex, e);
+            elements.RemoveAt(oldIndex);
         }
-        CalculateElementsPositions();
-        Program.MarkCanvasDirty();
-    }
-    public void MoveElementUp(Drawable e)
-    {
-        int index = elements.IndexOf(e);
-        if (index != -1 && elements.Count > 1 && index > 0)
+        else
         {
-            Drawable temp = elements[index - 1];
-            elements[index - 1] = e;
-            elements[index] = temp;
-        }
-        CalculateElementsPositions();
-        Program.MarkCanvasDirty();
-    }
-    public void BringElementToTop(Drawable e)
-    {
-        if (elements.Contains(e))
-        {
-            elements.Remove(e);
-            elements.Insert(0, e);
-        }
-        CalculateElementsPositions();
-        Program.MarkCanvasDirty();
-    }
-    public void BringElementToBottom(Drawable e)
-    {
-        if (elements.Contains(e))
-        {
-            elements.Remove(e);
-            elements.Add(e);
+            elements.Insert(newIndex, e);
+            elements.RemoveAt(oldIndex + 1);
+
         }
         CalculateElementsPositions();
         Program.MarkCanvasDirty();
@@ -215,13 +197,33 @@ public class Node : Drawable
         EnableConnectionColliders(true);
         // notify all wires to invalidate their colliders for the new position
     }
+    public override void Attach()
+    {
+        if (isAttached) return;
+        Program.canvas.Drawbles.Add(this);
+        Physics.colliders.Add(this.collider);
+        elements.ForEach((e) => e.Attach());
+        isAttached = true;
+    }
+    public override void Detach()
+    {
+        if (!isAttached) return;
+        Program.canvas.Drawbles.Remove(this);
+        Physics.colliders.Remove(this.collider);
+        elements.ForEach((e) => e.Detach());
+        isAttached = false;
+    }
     public override void Destroy()
     {
-        for (int i = elements.Count -1; i >= 0; i--)
+        for (int i = elements.Count - 1; i >= 0; i--)
         {
             elements[i].Destroy();
-        } 
+        }
         Program.canvas.SelectionBucket.Remove(this.Collider);
         base.Destroy();
+    }
+    ~Node()
+    {
+        Console.WriteLine("Node object finallized");
     }
 }

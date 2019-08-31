@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using NGA.ChangesManagement;
 using SharpDX;
 using SharpDX.Direct2D1;
 
@@ -39,19 +40,36 @@ public class NodeRing : Drawable, IDestroy
         }
         contextMenu = new ContextMenuStrip();
         contextMenu.Renderer = new NGAProfessionalRenderer();
-        contextMenu.Items.Add("Edit", null, (object o, EventArgs e) => {
+        contextMenu.Items.Add("Edit", null, (object o, EventArgs e) =>
+        {
             TextEditForm form = new TextEditForm(this.title, (string res) => { this.title = res; Program.MarkCanvasDirty(); Console.WriteLine(title); });
             form.Show();
-            
+
         });
         contextMenu.Items.Add(new ToolStripSeparator());
-        contextMenu.Items.Add("Bring to top", null, (object s, EventArgs args) => { parent.BringElementToTop(this); });
-        contextMenu.Items.Add("Bring to bottom", null, (object s, EventArgs args) => { parent.BringElementToBottom(this); });
-        contextMenu.Items.Add("Move up", null, (object s, EventArgs args) => { parent.MoveElementUp(this); });
-        contextMenu.Items.Add("Move down", null, (object s, EventArgs args) => { parent.MoveElementDown(this); });
+        contextMenu.Items.Add("Bring to top", null, (object s, EventArgs args) => {
+            Change ringPosChange = new NodeRingIndex(this, 0);
+            ringPosChange.Apply();
+            Program.canvas.ChangesManager.Push(ringPosChange);
+        });
+        contextMenu.Items.Add("Bring to bottom", null, (object s, EventArgs args) => {
+            Change ringPosChange = new NodeRingIndex(this, parent.Elements.Count - 1);
+            ringPosChange.Apply();
+            Program.canvas.ChangesManager.Push(ringPosChange);
+        });
+        contextMenu.Items.Add("Move up", null, (object s, EventArgs args) => {
+            Change ringPosChange = new NodeRingIndex(this, parent.Elements.IndexOf(this) - 1);
+            ringPosChange.Apply();
+            Program.canvas.ChangesManager.Push(ringPosChange);
+        });
+        contextMenu.Items.Add("Move down", null, (object s, EventArgs args) => {
+            Change ringPosChange = new NodeRingIndex(this, parent.Elements.IndexOf(this) + 1);
+            ringPosChange.Apply();
+            Program.canvas.ChangesManager.Push(ringPosChange);
+        });
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add("Delete", null, (object o, EventArgs args) => { Destroy(); });
-
+        isAttached = true;
     }
 
     public override void Draw(RenderTarget renderTarget, Vector2 translation)
@@ -85,7 +103,7 @@ public class NodeRing : Drawable, IDestroy
 
     public override void OnMouseDown(MouseEventArgs e, Collider c)
     {
-        if(e.Button == MouseButtons.Left) activeWire = new Wire();
+        if (e.Button == MouseButtons.Left) activeWire = new Wire();
     }
 
 
@@ -98,11 +116,10 @@ public class NodeRing : Drawable, IDestroy
             c.Drawable != this
             && ((NodeRing)c.Drawable).Approachable(this))
         {
-            NodeRing overRing = (NodeRing)c.Drawable;
             activeWire.Connect(this.collider, c);
-            Program.canvas.Drawbles.Add(activeWire);
-            overRing.Connections.Add(activeWire);
-            connections.Add(activeWire);
+            Change change = new WireConnected(activeWire);
+            change.Apply();
+            Program.canvas.ChangesManager.Push(change);
             activeWire = null;
         }
         else
@@ -133,6 +150,20 @@ public class NodeRing : Drawable, IDestroy
         }
         foreach (Drawable d in connections) d.Update();
     }
+    public override void Attach()
+    {
+        if (isAttached) return;
+        Physics.colliders.Add(this.collider);
+        for (int i = connections.Count - 1; i >= 0; i--) connections[i].Attach();
+        isAttached = true;
+    }
+    public override void Detach()
+    {
+        if (!isAttached) return;
+        Physics.colliders.Remove(this.collider);
+        for (int i = connections.Count - 1; i >= 0; i--) connections[i].Detach();
+        isAttached = false;
+    }
     public override void Destroy()
     {
         base.Destroy();
@@ -154,5 +185,8 @@ public class NodeRing : Drawable, IDestroy
         highlight = false;
         Program.MarkCanvasDirty();
     }
-
+    ~NodeRing()
+    {
+        Console.WriteLine("NodeRing object finallized");
+    }
 }

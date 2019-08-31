@@ -9,12 +9,12 @@ public abstract class Drawable : IDestroy
     protected Drawable parent;
     protected Collider collider;
     protected ContextMenuStrip contextMenu;
-    protected bool reciveRaycasts = true;
+    protected bool isAttached;
     
     public RectangleF BoundingBox { get => boundingBox;}
 
     public Collider Collider { get => collider;}
-    protected Drawable Parent { get => parent; set => parent = value; }
+    public Drawable Parent { get => parent;}
     public ContextMenuStrip ContextMenu => contextMenu;
     public Drawable(Drawable parent) {
         this.parent = parent;
@@ -47,7 +47,17 @@ public abstract class Drawable : IDestroy
         }
         return globalPosition;
     }
-    public virtual void Destroy() {
+    /// <summary>
+    /// cause the drawable to be removed from canvas
+    /// </summary>
+    public abstract void Detach();
+    /// <summary>
+    /// cause the drawable to be attached to the canvas.
+    /// </summary>
+    public abstract void Attach();
+
+    public virtual void Destroy()
+    {
         Program.canvas.Drawbles.Remove(this);
         if (collider != null) {
             collider.Destroy();

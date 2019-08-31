@@ -23,7 +23,7 @@ namespace NGA.Holders
         {
             parent = node;
         }
-        public override NodeRing Release(CanvasHolder holder, CanvasHolder.IDGenerator generator)
+        public override NodeRing Release(CanvasHolder holder, Generators.IDGenerator generator)
         {
             if (parent == null) throw new ArgumentNullException("parent must be set using SetParent() before release!");
             NodeRing generatedNodeRing = new NodeRing(parent, title, color, direction);

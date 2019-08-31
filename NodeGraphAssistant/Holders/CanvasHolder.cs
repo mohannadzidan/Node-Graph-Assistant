@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using NGA.Generators;
 using SharpDX;
 
 namespace NGA.Holders
@@ -28,13 +29,13 @@ namespace NGA.Holders
                 if (d.GetType() == typeof(Node))
                 {
                     Node node = (Node)d;
-                    Id nodeId = idGenerator.Add(node);
-                    Drawable[] nodeElements = node.Elements;
-                    int[] nodeHolderElements = new int[nodeElements.Length];
-                    for (int i = 0; i < nodeElements.Length; i++)
+                    ID nodeId = idGenerator.Add(node);
+                    List< Drawable> nodeElements = node.Elements;
+                    int[] nodeHolderElements = new int[nodeElements.Count];
+                    for (int i = 0; i < nodeElements.Count; i++)
                     {
                         NodeRing nodeRing = (NodeRing)nodeElements[i];
-                        Id nodeRingId = idGenerator.Add(nodeRing);
+                        ID nodeRingId = idGenerator.Add(nodeRing);
                         nodeHolderElements[i] = nodeRingId.value;
                         nodeRingHoldersList.Add(new NodeRingHolder(nodeRingId.value, nodeId.value, nodeRing.Title, nodeRing.Color, nodeRing.Direction));
                     }
@@ -46,7 +47,7 @@ namespace NGA.Holders
                 if (d.GetType() == typeof(Wire))
                 {
                     Wire wire = (Wire)d;
-                    Id wireId = idGenerator.Add(wire);
+                    ID wireId = idGenerator.Add(wire);
                     wireHoldersList.Add(new WireHolder(wireId.value, idGenerator.Find(wire.Start.Drawable).value, idGenerator.Find(wire.End.Drawable).value));
                 }
             }
@@ -78,44 +79,6 @@ namespace NGA.Holders
         public string ToJson() {
             return JsonConvert.SerializeObject(this);
         }
-        public class IDGenerator
-        {
-            List<Id> idsList = new List<Id>();
-            public Id Add(Drawable reference)
-            {
-                Id id = new Id(idsList.Count, reference);
-                idsList.Add(id);
-                return id;
-            }
-            public Id Add(int value, Drawable reference)
-            {
-                Id id = new Id(value, reference);
-                idsList.Add(id);
-                return id;
-            }
-            public void Reset()
-            {
-                idsList.Clear();
-            }
-            public Id Find(Drawable reference)
-            {
-                return idsList.Find(id => id.reference == reference);
-            }
-            public Id Find(int value)
-            {
-                return idsList.Find(id => id.value == value);
-            }
-
-        }
-        public class Id
-        {
-            public int value;
-            public Drawable reference;
-            public Id(int value, Drawable reference)
-            {
-                this.value = value;
-                this.reference = reference;
-            }
-        }
+       
     }
 }
